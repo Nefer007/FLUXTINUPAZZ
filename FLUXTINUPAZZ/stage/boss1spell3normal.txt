@@ -1,0 +1,116 @@
+#TouhouDanmakufu[Single]
+#ScriptVersion[3]
+#Player[./../player/Murtaugh/Murtaugh_Player.png]
+#Title["Boss1 Attack3 Normal"]
+#Text["LAZOR BEAMZ"]
+
+let bossObj;
+let bossX = 0;
+let bossY = 0;
+let imgBoss = GetCurrentScriptDirectory ~ "derp.png";
+	
+#include "script/FLUXTINUPAZZ/system/Default_ShotConst.txt"
+
+@Initialize {
+	SetAutoDeleteObject(true);
+	// define a boss in bossObj and register it
+	bossObj = ObjEnemy_Create(OBJ_ENEMY_BOSS);
+	ObjEnemy_Regist(bossObj);
+
+	ObjPrim_SetTexture(bossObj,imgBoss);
+	ObjSprite2D_SetSourceRect(bossObj,0,0,120,121);
+	ObjSprite2D_SetDestCenter(bossObj);
+	// move boss to desired x y location at desired speed
+	ObjMove_SetDestAtSpeed(bossObj,192,120,5);
+	
+	mainTask;
+} 
+
+@Event { 
+// setting the boss timer and life
+	alternative(GetEventType()) 
+	case(EV_REQUEST_LIFE) { 
+		SetScriptResult(1000);
+	}
+	case(EV_REQUEST_TIMER) { 
+		SetScriptResult(45);
+	}
+} 
+
+@MainLoop {
+	bossX = ObjMove_GetX(bossObj);
+	bossY = ObjMove_GetY(bossObj);
+	
+// collision for the shots and player
+	ObjEnemy_SetIntersectionCircleToShot(bossObj,bossX,bossY,24);
+	ObjEnemy_SetIntersectionCircleToPlayer(bossObj,bossX,bossY,32);
+	
+	yield;
+} 
+
+@Finalize {
+
+} 
+
+
+function wait(w) { loop(w) { yield; } } 
+
+task mainTask { 
+	renderBoss;
+	movement;
+	TEnd;
+} 
+
+task renderBoss {
+	let dir;
+	let speed;
+
+	while(!Obj_IsDeleted(bossObj)) {
+		
+		// update boss speed and direction locally
+		dir = ObjMove_GetAngle(bossObj);
+		speed = ObjMove_GetSpeed(bossObj);
+		
+		// if the boss is idle, show this image/rect
+		if(speed == 0) { ObjSprite2D_SetSourceRect(bossObj,0,0,120,121); ObjRender_SetAngleXYZ(bossObj,0,0,0); } 			// boss holding location
+		else if(cos(dir) < 0) { ObjSprite2D_SetSourceRect(bossObj,0,0,120,121); ObjRender_SetAngleXYZ(bossObj,0,0,0); } 	// boss moving to the left
+		else if(cos(dir) > 0) { ObjSprite2D_SetSourceRect(bossObj,0,0,120,121); ObjRender_SetAngleXYZ(bossObj,0,0,0); } 	// boss moving to the right
+		
+		yield;
+	}
+	
+} 
+
+task movement {
+	wait(60);
+	fire;
+	wait(30);
+	loop { 
+		ObjMove_SetDestAtSpeed(bossObj,GetPlayerX,120,5);		// move to the player's location
+		wait(45);
+		fire;
+		wait(30);
+	}
+}
+
+function angleToPlayer {
+	let dir = 90; // attack will be fired straight down
+	return dir;
+}
+
+task fire {
+	let dir = angleToPlayer;	// call function angleToPlayer, calculate the angle and store it inside dir.
+	loop(1) { 
+		CreateStraightLaserA1(bossX,bossY+10,90,900,50,10,DS_BEAM_RAINBOW,20); // create a laser using model Beam (Rainbow) that shoots straight down at the player's location
+		wait(3);
+	}
+} 
+
+task TEnd {	
+	while(ObjEnemy_GetInfo(bossObj,INFO_LIFE) > 0) {
+		yield;
+	}
+	Obj_Delete(bossObj); // eliminate boss, sets bullet spawn to corner
+	wait(120);	
+	CloseScript(GetOwnScriptID()); // ends script
+}
